@@ -6,24 +6,28 @@
 #include <rclc/executor.h>
 #include <std_msgs/msg/int32.h>
 #include <std_msgs/msg/bool.h>
-#include <std_msgs/msg/u_int32.h>
+#include <std_msgs/msg/float32.h>
+#include <std_msgs/msg/float32_multi_array.h>
 #include <rmw_microros/rmw_microros.h>
 
 #include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
 #include "picow_udp_transports.h"
-#include "pico_servo.h"
+#include "Brazo.h"
 
 rcl_publisher_t count_publisher;
 rcl_subscription_t led_subscription;
 rcl_subscription_t angle_subscription;
+rcl_subscription_t angles_subscription;
 std_msgs__msg__Int32 count_msg;
 std_msgs__msg__Bool led_msg;
-std_msgs__msg__UInt32 angle_msg;
+std_msgs__msg__Float32 angle_msg;
+std_msgs__msg__Float32MultiArray angles_msg;
+
+Brazo brazo = Brazo();
 
 const char* SSID = "redpucp";
 const char* PSWD = "C9AA28BA93";
-#define SERVO1_PIN 27
 
 void timer_callback(rcl_timer_t *timer, int64_t last_call_time)
 {
@@ -45,8 +49,22 @@ void led_subscription_callback(const void * msgin)
 
 void angle_subscription_callback(const void * msgin)
 {
-    const std_msgs__msg__UInt32 * amsg = (const std_msgs__msg__UInt32 *)msgin;
-    servo_move_to(SERVO1_PIN, amsg->data);
+    const std_msgs__msg__Float32 * amsg = (const std_msgs__msg__Float32 *)msgin;
+    brazo.goDegree(1, amsg->data);
+}
+
+void angles_subscription_callback(const void * msgin)
+{
+    const std_msgs__msg__Float32MultiArray * amsg = (const std_msgs__msg__Float32MultiArray *)msgin;
+    if (amsg->data.size < 4) {
+        printf("Received angles array with insufficient data: %zu elements\n", amsg->data.size);
+        return;
+    }
+    float v0 = amsg->data.data[0];
+    float v1 = amsg->data.data[1];
+    float v2 = amsg->data.data[2];
+    float v3 = amsg->data.data[3];
+    brazo.goDegrees(v0, v1, v2, v3);
 }
 
 int main()
@@ -66,10 +84,7 @@ int main()
 
     stdio_init_all();
 
-    servo_init();
-    servo_clock_auto();
-
-    servo_attach(SERVO1_PIN);
+    brazo.init();
 
     rmw_uros_set_custom_transport(
 		false,
@@ -124,10 +139,16 @@ int main()
     rclc_subscription_init_default(
         &angle_subscription,
         &node,
-        ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, UInt32),
+        ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32),
         "pico_angle_subscriber");
 
-    rclc_executor_init(&executor, &support.context, 3, &allocator);
+    rclc_subscription_init_default(
+        &angles_subscription,
+        &node,
+        ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32MultiArray),
+        "pico_angles_subscriber");
+
+    rclc_executor_init(&executor, &support.context, 5, &allocator);
 
     rclc_executor_add_subscription(
         &executor,
@@ -141,6 +162,13 @@ int main()
         &angle_subscription,
         &angle_msg,
         angle_subscription_callback,
+        ON_NEW_DATA);
+
+    rclc_executor_add_subscription(
+        &executor,
+        &angles_subscription,
+        &angles_msg,
+        angles_subscription_callback,
         ON_NEW_DATA);
 
     rclc_executor_add_timer(&executor, &timer);

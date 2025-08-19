@@ -14,9 +14,10 @@ add_subdirectory(3rdparty)
 
 link_directories(libmicroros)
 add_executable(${PROJECT_NAME}
-    src/main.c
+    src/main.cpp
     src/picow_udp_transports.c
-    src/pico_servo.c
+    src/Servo.cpp
+    src/Brazo.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
