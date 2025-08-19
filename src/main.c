@@ -6,29 +6,33 @@
 #include <rclc/executor.h>
 #include <std_msgs/msg/int32.h>
 #include <std_msgs/msg/bool.h>
-#include <std_msgs/msg/float32_multi_array.h>
+#include <std_msgs/msg/u_int32.h>
 #include <rmw_microros/rmw_microros.h>
 
 #include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
 #include "picow_udp_transports.h"
+#include "pico_servo.h"
 
-rcl_publisher_t publisher;
-rcl_subscription_t subscription;
-std_msgs__msg__Int32 msg;
-std_msgs__msg__Bool subscription_msg;
-std_msgs__msg__Float32MultiArray angles_msg;
+rcl_publisher_t count_publisher;
+rcl_subscription_t led_subscription;
+rcl_subscription_t angle_subscription;
+std_msgs__msg__Int32 count_msg;
+std_msgs__msg__Bool led_msg;
+std_msgs__msg__UInt32 angle_msg;
 
 const char* SSID = "redpucp";
 const char* PSWD = "C9AA28BA93";
+#define SERVO1_PIN 27
 
 void timer_callback(rcl_timer_t *timer, int64_t last_call_time)
 {
-    rcl_ret_t ret = rcl_publish(&publisher, &msg, NULL);
-    msg.data++;
+    rcl_ret_t ret = rcl_publish(&count_publisher, &count_msg, NULL);
+
+    count_msg.data++;
 }
 
-void subscription_callback(const void * msgin)
+void led_subscription_callback(const void * msgin)
 {
     const std_msgs__msg__Bool * bmsg = (const std_msgs__msg__Bool *)msgin;
     if (bmsg->data) {
@@ -36,7 +40,13 @@ void subscription_callback(const void * msgin)
     } else {
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
     }
-    msg.data = 0;
+    count_msg.data = 0;
+}
+
+void angle_subscription_callback(const void * msgin)
+{
+    const std_msgs__msg__UInt32 * amsg = (const std_msgs__msg__UInt32 *)msgin;
+    servo_move_to(SERVO1_PIN, amsg->data);
 }
 
 int main()
@@ -53,6 +63,13 @@ int main()
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         return 1;
     }
+
+    stdio_init_all();
+
+    servo_init();
+    servo_clock_auto();
+
+    servo_attach(SERVO1_PIN);
 
     rmw_uros_set_custom_transport(
 		false,
@@ -87,10 +104,10 @@ int main()
 
     rclc_node_init_default(&node, "pico_node", "", &support);
     rclc_publisher_init_default(
-        &publisher,
+        &count_publisher,
         &node,
         ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
-        "pico_publisher");
+        "pico_count_publisher");
 
     rclc_timer_init_default(
         &timer,
@@ -99,25 +116,38 @@ int main()
         timer_callback);
 
     rclc_subscription_init_default(
-        &subscription,
+        &led_subscription,
         &node,
         ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Bool),
-        "pico_subscriber");
+        "pico_led_subscriber");
 
-    rclc_executor_init(&executor, &support.context, 2, &allocator);
+    rclc_subscription_init_default(
+        &angle_subscription,
+        &node,
+        ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, UInt32),
+        "pico_angle_subscriber");
+
+    rclc_executor_init(&executor, &support.context, 3, &allocator);
 
     rclc_executor_add_subscription(
         &executor,
-        &subscription,
-        &subscription_msg,
-        subscription_callback,
+        &led_subscription,
+        &led_msg,
+        led_subscription_callback,
+        ON_NEW_DATA);
+
+    rclc_executor_add_subscription(
+        &executor,
+        &angle_subscription,
+        &angle_msg,
+        angle_subscription_callback,
         ON_NEW_DATA);
 
     rclc_executor_add_timer(&executor, &timer);
 
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
 
-    msg.data = 0;
+    count_msg.data = 0;
     while (true)
     {
         rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100));
