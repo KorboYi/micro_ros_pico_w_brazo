@@ -10,8 +10,6 @@ set(CMAKE_CXX_STANDARD 17)
 
 pico_sdk_init()
 
-add_subdirectory(3rdparty)
-
 link_directories(libmicroros)
 add_executable(${PROJECT_NAME}
     src/main.cpp
@@ -25,7 +23,6 @@ target_link_libraries(${PROJECT_NAME}
     microros
     pico_cyw43_arch_lwip_threadsafe_background
     hardware_pwm
-    fixmath
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
@@ -34,7 +31,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     include
-    3rdparty/pico-libfixmath/include
 )
 
 SET(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -ffunction-sections -fdata-sections")
