@@ -49,7 +49,7 @@ void timer_callback(rcl_timer_t* timer, int64_t last_call_time)
 
 void led_subscription_callback(const void* msgin)
 {
-    const std_msgs__msg__Bool* bmsg = (const std_msgs__msg__Bool*)msgin;
+    auto bmsg = (const std_msgs__msg__Bool*)msgin;
     if (bmsg->data) {
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
     }
@@ -60,9 +60,9 @@ void led_subscription_callback(const void* msgin)
 
 void angle_subscription_callback(const void* msgin)
 {
-    const sensor_msgs__msg__JointState* jmsg = (const sensor_msgs__msg__JointState*)msgin;
-    if (jmsg->name.size != 1) {
-        printf("Received angle array with unexpected size: %zu elements\n", jmsg->name.size);
+    auto jmsg = (const sensor_msgs__msg__JointState*)msgin;
+    if (jmsg->name.size != 1 || jmsg->position.size != 1) {
+        printf("Received angle message with unexpected size: %zu names, %zu positions\n", jmsg->name.size, jmsg->position.size);
         return;
     }
     uint8_t servo_index = jmsg->name.data->data[0] - '1';
@@ -76,21 +76,22 @@ void angle_subscription_callback(const void* msgin)
 
 void angles_subscription_callback(const void* msgin)
 {
-    const sensor_msgs__msg__JointState* jmsg = (const sensor_msgs__msg__JointState*)msgin;
+    auto jmsg = (const sensor_msgs__msg__JointState*)msgin;
     if (jmsg->position.size != 4) {
         printf("Received angles array with unexpected size: %zu elements\n", jmsg->name.size);
         return;
     }
-    float v0 = jmsg->position.data[0];
-    float v1 = jmsg->position.data[1];
-    float v2 = jmsg->position.data[2];
-    float v3 = jmsg->position.data[3];
-    brazo.goDegrees(v0, v1, v2, v3);
+    float d1 = jmsg->position.data[0]; 
+    float d2 = jmsg->position.data[1];
+    float d3 = jmsg->position.data[2];
+    float d4 = jmsg->position.data[3];
+    brazo.goDegrees(d1, d2, d3, d4);
 }
 
 int main()
 {
     if (cyw43_arch_init_with_country(CYW43_COUNTRY_PERU)) {
+        printf("Failed to initialize CYW43 architecture\n");
         return 1;
     }
 
@@ -101,11 +102,13 @@ int main()
     cyw43_arch_enable_sta_mode();
 
     if (cyw43_arch_wifi_connect_timeout_ms(SSID, PSWD, CYW43_AUTH_WPA2_AES_PSK, 10000)) {
+        printf("Failed to connect to WiFi network %s\n", SSID);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         return 1;
     }
 
     if (!ntp_client_init()) {
+        printf("Failed to initialize NTP client\n");
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         return 1;
     }
