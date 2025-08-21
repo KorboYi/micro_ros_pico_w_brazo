@@ -8,7 +8,7 @@
 #include "Servo.h"
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
-// #include <stdio.h>
+ // #include <stdio.h>
 
 #define ROTATE_0 500 //Rotate to 0° position
 #define ROTATE_180 2500
@@ -33,10 +33,10 @@ void Servo::init() {
 	uint32_t div = clk / (20000 * 50);
 
 	// Check div is in range
-	if ( div < 1 ){
+	if (div < 1) {
 		div = 1;
 	}
-	if ( div > 255 ){
+	if (div > 255) {
 		div = 255;
 	}
 
@@ -57,17 +57,21 @@ void Servo::init() {
  * move to angle: 0 to 180.
  * @param degree
  */
-void Servo::goDegree(float degree){
-	if (degree > 180.0){
+void Servo::goDegree(float degree) {
+	if (degree > 180.0) {
 		return;
 	}
-	if (degree < 0){
+	if (degree < 0) {
 		return;
 	}
 
 	int duty = (((float)(ROTATE_180 - ROTATE_0) / 180.0) * degree) + ROTATE_0;
 
-	// printf("PWM for %f deg is %d duty\n", degree, duty);
 	pwm_set_gpio_level(xGP, duty);
 
+	angle = degree;
+}
+
+float Servo::getAngle() {
+	return angle;
 }

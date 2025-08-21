@@ -23,8 +23,11 @@ public:
 	 */
 	void goDegree(float degree);
 
+	float getAngle();
+
 private:
 	uint8_t xGP = 0;
+	float angle = 0.0f;
 };
 
 #endif /* SERVO_SRC_SERVO_H_ */

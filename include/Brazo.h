@@ -16,11 +16,11 @@
 #define SERVO3_GP 22
 #define SERVO4_GP 21
 
-// Simple wrapper for a 4-servo robotic arm (brazo = arm)
+ // Simple wrapper for a 4-servo robotic arm (brazo = arm)
 class Brazo {
 public:
-    // Default constructor using the project's servo pins
-    Brazo();
+	// Default constructor using the project's servo pins
+	Brazo();
 	// Construct with the 4 GPIO pins used by each servo (order: 1..4)
 	Brazo(uint8_t gp1, uint8_t gp2, uint8_t gp3, uint8_t gp4);
 	virtual ~Brazo();
@@ -36,6 +36,9 @@ public:
 
 	// Convenience: move all servos to the same degree
 	void goAllTo(float degree);
+
+	// Get all angles of the servos
+	void getAngles(float* angles);
 
 private:
 	// The four servos

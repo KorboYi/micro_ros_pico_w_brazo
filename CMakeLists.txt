@@ -16,6 +16,7 @@ add_executable(${PROJECT_NAME}
     src/picow_udp_transports.c
     src/Servo.cpp
     src/Brazo.cpp
+    src/ntp_client.c
 )
 
 target_link_libraries(${PROJECT_NAME}
