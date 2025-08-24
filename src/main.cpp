@@ -15,7 +15,6 @@
 #include <rclc/rclc.h>
 #include <rclc/executor.h>
 #include <std_msgs/msg/bool.h>
-#include <std_msgs/msg/string.h>
 #include <std_msgs/msg/float32_multi_array.h>
 #include <sensor_msgs/msg/joint_state.h>
 #include <rmw_microros/rmw_microros.h>
@@ -152,20 +151,20 @@ int main()
     // Try connecting to WiFi up to WIFI_RETRIES with a timeout per attempt.
     // This loop toggles the LED on failure as a visual indicator.
     bool wifi_ok = false;
-    for (int attempt = 1; attempt <= WIFI_RETRIES; ++attempt) {
-        printf("Connecting to WiFi network %s (attempt %d/%d)...\n", SSID, attempt, WIFI_RETRIES);
+    for (size_t attempt = 1; attempt <= WIFI_RETRIES; ++attempt) {
+        printf("Connecting to WiFi network %s (attempt %zu/%zu)...\n", SSID, attempt, WIFI_RETRIES);
         if (!cyw43_arch_wifi_connect_timeout_ms(SSID, PSWD, CYW43_AUTH_WPA2_AES_PSK, WIFI_TIMEOUT_MS)) {
             // API returns 0 on success for this platform, so invert the check
             wifi_ok = true;
             break;
         }
-        printf("Attempt %d failed to connect to WiFi network %s\n", attempt, SSID);
+        printf("Attempt %zu failed to connect to WiFi network %s\n", attempt, SSID);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         sleep_ms(500);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
     }
     if (!wifi_ok) {
-        printf("Failed to connect to WiFi network %s after %d attempts\n", SSID, WIFI_RETRIES);
+        printf("Failed to connect to WiFi network %s after %zu attempts\n", SSID, WIFI_RETRIES);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         return 1;
     }
