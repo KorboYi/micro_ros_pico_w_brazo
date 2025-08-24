@@ -9,13 +9,12 @@
 #include "lwip/pbuf.h"
 #include "lwip/udp.h"
 
-#define ROS_AGENT_UDP_PORT  (8888)
-#define ROS_AGENT_IP_ADDR   "10.101.45.147"    // You need modify IP
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+    extern const char* ROS_AGENT_IP_ADDR;
+    extern const int ROS_AGENT_UDP_PORT;
 
     typedef struct {
         struct udp_pcb* pcb;
