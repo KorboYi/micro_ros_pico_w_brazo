@@ -1,0 +1,3 @@
+[submodule "lib/pico-distance-sensor"]
+	path = lib/pico-distance-sensor
+	url = https://github.com/dangarbri/pico-distance-sensor

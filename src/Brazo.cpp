@@ -1,14 +1,7 @@
 #include "Brazo.h"
 
-Brazo::Brazo()
-	: s1(SERVO1_GP), s2(SERVO2_GP), s3(SERVO3_GP), s4(SERVO4_GP) {
-}
-
 Brazo::Brazo(uint8_t gp1, uint8_t gp2, uint8_t gp3, uint8_t gp4)
 	: s1(gp1), s2(gp2), s3(gp3), s4(gp4) {
-}
-
-Brazo::~Brazo() {
 }
 
 void Brazo::init() {

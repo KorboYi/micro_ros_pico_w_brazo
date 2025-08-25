@@ -17,6 +17,7 @@
 #include <std_msgs/msg/bool.h>
 #include <std_msgs/msg/float32_multi_array.h>
 #include <sensor_msgs/msg/joint_state.h>
+#include <sensor_msgs/msg/range.h>
 #include <rmw_microros/rmw_microros.h>
 
 // Pico SDK and platform specific headers
@@ -25,28 +26,32 @@
 #include "pico/cyw43_arch.h"
 
 // Custom transport and project headers
-#include "picow_udp_transports.h" // UDP transport for micro-ROS agent communication
-#include "Brazo.h"               // Servo/arm control abstraction
-#include "ntp_client.h"         // Simple NTP client helper
+#include "picow_udp_transports.h"   // UDP transport for micro-ROS agent communication
+#include "Brazo.h"                  // Servo/arm control abstraction
+#include "ntp_client.h"             // Simple NTP client helper
+#include "Ultrasonido.h"            // Ultrasonic sensor abstraction
 
 // -- ROS objects (global for simplicity in this small example) --
 // Publisher that periodically publishes the 4 servo angles
-rcl_publisher_t angles_publisher;
+rcl_publisher_t angles_publisher;   // 4-servo angles
+rcl_publisher_t distance_publisher; // Distance sensor readings
 
 // Subscriptions for controlling LED and servo angles
-rcl_subscription_t led_subscription;
-rcl_subscription_t angles_subscription;  // 4-servo array command
+rcl_subscription_t led_subscription;    // LED control
+rcl_subscription_t angles_subscription; // 4-servo array command
 
 // Message buffers used by the executor callbacks
 std_msgs__msg__Bool led_msg;
-sensor_msgs__msg__JointState angles_pub_msg;   // published message
-std_msgs__msg__Float32MultiArray angles_sub_msg;  // multi-angle subscriber buffer
+sensor_msgs__msg__JointState angles_pub_msg;        // published message
+std_msgs__msg__Float32MultiArray angles_sub_msg;    // multi-angle subscriber buffer
+sensor_msgs__msg__Range distance_pub_msg;           // distance message
 
 // Hardware/control objects
-Brazo g_brazo = Brazo();               // 4-servo arm controller
-absolute_time_t BOOT_TIME;           // pico absolute boot time (microseconds)
-absolute_time_t NTP_TIME;            // last NTP-synchronized time (microseconds)
-const int OFFSET_SECONDS = 5 * 3600; // UTC-5
+Brazo g_brazo = Brazo(27, 26, 22, 21);          // 4-servo arm controller
+Ultrasonido g_ultrasonido = Ultrasonido(15);    // Ultrasonic sensor on GPIO 15
+absolute_time_t BOOT_TIME;                      // pico absolute boot time (microseconds)
+absolute_time_t NTP_TIME;                       // last NTP-synchronized time (microseconds)
+const int OFFSET_SECONDS = 5 * 3600;            // UTC-5
 
 // WiFi credentials and retry configuration
 const char* SSID = "redpucp";
@@ -71,7 +76,7 @@ const std::string NAMESPACE = "brazo_" + std::to_string(BRAZO_ID);
 // - writes them into a sensor_msgs/JointState message
 // - computes a wall-clock timestamp by adding the elapsed time since
 //   boot to the last NTP time sample
-void timer_callback(rcl_timer_t* timer, int64_t last_call_time)
+void angles_pub_timer_callback(rcl_timer_t* timer, int64_t last_call_time)
 {
     // Read current servo angles (assumed 4 elements)
     float brazo_angles[4];
@@ -93,6 +98,22 @@ void timer_callback(rcl_timer_t* timer, int64_t last_call_time)
     auto ret = rcl_publish(&angles_publisher, &angles_pub_msg, NULL);
     if (ret != RCL_RET_OK) {
         printf("Error publishing angles: %s\n", rcl_get_error_string().str);
+        rcl_reset_error();
+    }
+}
+
+void distance_pub_timer_callback(rcl_timer_t* timer, int64_t last_call_time)
+{
+    // Get the current distance reading from the Ultrasonido sensor
+    uint32_t distance = g_ultrasonido.getDistance();
+
+    // Fill the distance message
+    distance_pub_msg.range = distance;
+
+    // Publish the distance message
+    auto ret = rcl_publish(&distance_publisher, &distance_pub_msg, NULL);
+    if (ret != RCL_RET_OK) {
+        printf("Error publishing distance: %s\n", rcl_get_error_string().str);
         rcl_reset_error();
     }
 }
@@ -214,7 +235,8 @@ int main()
     );
 
     // rcl/rclc objects needed for node, timers, and executor
-    rcl_timer_t timer;
+    rcl_timer_t angles_pub_timer;
+    rcl_timer_t distance_pub_timer;
     rcl_node_t node;
     rcl_allocator_t allocator;
     rclc_support_t support;
@@ -248,10 +270,22 @@ int main()
 
     // Create a periodic timer that calls timer_callback every 100 ms
     rclc_timer_init_default(
-        &timer,
+        &angles_pub_timer,
         &support,
         RCL_MS_TO_NS(100),
-        timer_callback);
+        angles_pub_timer_callback);
+
+    rclc_publisher_init_default(
+        &distance_publisher,
+        &node,
+        ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Range),
+        "distance");
+
+    rclc_timer_init_default(
+        &distance_pub_timer,
+        &support,
+        RCL_MS_TO_NS(500),
+        NULL); // TODO: add distance timer callback
 
     // Initialize subscriptions for LED control and angle commands
     rclc_subscription_init_default(
@@ -284,7 +318,7 @@ int main()
         angles_subscription_callback,
         ON_NEW_DATA);
 
-    rclc_executor_add_timer(&executor, &timer);
+    rclc_executor_add_timer(&executor, &angles_pub_timer);
 
     // Turn status LED on to indicate WiFi/NTP and micro-ROS initialization
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
