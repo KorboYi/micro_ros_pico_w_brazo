@@ -223,6 +223,7 @@ int main()
 
     // Initialize servo controller (calibration, pin setup inside Brazo)
     g_brazo.init();
+    g_ultrasonido.init();
 
     // Configure micro-ROS to use a custom UDP transport tailored for Pico W
     rmw_uros_set_custom_transport(
