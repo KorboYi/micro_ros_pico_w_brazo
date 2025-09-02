@@ -1,17 +1,27 @@
 ![banner](.images/banner-dark-theme.png#gh-dark-mode-only)
 ![banner](.images/banner-light-theme.png#gh-light-mode-only)
 
-# micro-ROS module for Raspberry Pi Pico SDK
+# micro-ROS module for Raspberry Pi Pico W using Pico SDK
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+This tutorial explains how to compile the firmware for the Raspberry Pi Pico W, flash it to the microcontroller, and install and use the `micro_ros_agent` for communication.
+
+> Note: This can be used with the Raspberry Pi Pico by using the `uart_transport` instead of the `udp_transport`.
 
 ## Getting Started
 
-Here is a quick way to compile the example given in this repository.
+There are two parts of the enviroment in order for us to use micro-ROS in the Raspberry Pi Pico W: the frimware and the agent.
 
-### Dependencies
+- Frimware: The actual code that runs in the micro-controller, defines the nodes and topics that will be available, and publishes and/or subscribes to those topics.
 
-micro-ROS precompiled library is compiled using `arm-none-eabi-gcc` [9.3.1](https://developer.arm.com/-/media/Files/downloads/gnu-rm/9-2020q2/gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.tar.bz2), a compatible version is expected when building the micro-ROS project.
+- Agent: The communication channel for the micro-controller to interact with a ROS enviroment. Usually, it runs on the host computer, giving access and exposing the nodes and topics from defined in the frimware.
+
+> Note: The ```ROS_DOMAIN_ID``` would be the one that is defined by the agent.
+
+## Frimware Installation
+
+### 1. Configure Environment
+
+The micro-ROS precompiled library is built using `arm-none-eabi-gcc` 9.3.1. A compatible toolchain version is required when building the micro-ROS project.
 You can specify a compiler path with the following command:
 
 ```bash
@@ -20,7 +30,8 @@ echo "export PICO_TOOLCHAIN_PATH=..." >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### 1. Install Pico SDK
+### 2. Install Pico SDK
+
 First, make sure the Pico SDK is properly installed and configured:
 
 ```bash
@@ -33,66 +44,71 @@ echo "export PICO_SDK_PATH=$HOME/pico-sdk" >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### 2. Compile Example
+### 3. Compile the Firmware
 
-Once the Pico SDK is ready, compile the example:
+To indicate which host the agent is running on, modify the `ROS_AGENT_IP_ADDR` constant in [`src/main.cpp`](src/main.cpp). You can also change the Wi‑Fi settings via the `SSID` and `PSWD` constants. These are the only values you typically need to modify in the codebase.
+
+Once the Pico SDK is ready, compile the repository:
 
 ```bash
-cd micro_ros_raspberrypi_pico_sdk
+# Compile using CMake
+cd micro_ros_pico_w_brazo
 mkdir build
 cd build
 cmake ..
 make
 ```
 
-To flash, hold the boot button, plug the USB and run:
+### 4. Flash Firmware
+
+To flash: hold the BOOTSEL button, plug in the USB cable, and run:
+
+![Pico-bootsel](.images/Pico-bootsel.png)
+
 ```
 cp pico_micro_ros_example.uf2 /media/$USER/RPI-RP2
 ```
 
-### 3. Start Micro-ROS Agent
-Micro-ROS follows the client-server architecture, so you need to start the Micro-ROS Agent.
-You can do so using the [micro-ros-agent Docker](https://hub.docker.com/r/microros/micro-ros-agent):
-```bash
-docker run -it --rm -v /dev:/dev --privileged --net=host microros/micro-ros-agent:humble serial --dev /dev/ttyACM0 -b 115200
-```
+### 5. Usage
 
-## What files are relevant?
-- `pico_uart_transport.c`: Contains the board specific implementation of the serial transport (no change needed).
-- `CMakeLists.txt`: CMake file.
-- `pico_micro_ros_example.c`: The actual ROS 2 publisher.
+The microcontroller will restart and begin running, first attempting to join the configured wireless network and then looking for an available agent on the host. You can debug it via the USB serial port with a serial monitor.
 
-## How to build the precompiled library
+## Agent Installation
 
-Micro-ROS is precompiled for Raspberry Pi Pico in [`libmicroros`](libmicroros).
-If you want to compile it by yourself:
+### 1. Installation
+
+Create a ROS 2 workspace and build this package for your target ROS 2 distribution.
 
 ```bash
-docker pull microros/micro_ros_static_library_builder:humble
-docker run -it --rm -v $(pwd):/project microros/micro_ros_static_library_builder:humble
+# Source ROS 2 environment
+source /opt/ros/$ROS_DISTRO/setup.bash
+
+# Create workspace directory (optional if already created)
+mkdir uros_ws
+cd uros_ws
+
+# Clone the micro_ros_agent repo
+git clone -b $ROS_DISTRO https://github.com/micro-ROS/micro_ros_setup.git src/micro_ros_setup
+
+# Update ROS2 dependencies
+rosdep update
+rosdep install --from-paths src --ignore-src -y
 ```
 
-Note that folders added to `microros_static_library/library_generation/extra_packages` and entries added to `microros_static_library/library_generation/extra_packages/extra_packages.repos` will be taken into account by this build system.
-## How to use Pico SDK?
+> Note: if `rosdep update` fails, run `sudo rosdep init` if you haven't already.
 
-Here is a Raspberry Pi Pico C/C++ SDK documentation:
-https://datasheets.raspberrypi.org/pico/raspberry-pi-pico-c-sdk.pdf
-## Purpose of the Project
+```bash
+# Compile and source the enviroment
+colcon build
+source install/local_setup.bash
+```
 
-This software is not ready for production use. It has neither been developed nor
-tested for a specific use case. However, the license conditions of the
-applicable Open Source licenses allow you to adapt the software to your needs.
-Before using it in a safety relevant setting, make sure that the software
-fulfills your requirements and adjust it according to any applicable safety
-standards, e.g., ISO 26262.
+### 2. Usage
 
-## License
+To start the agent that connects to the microcontroller, run the following command:
 
-This repository is open-sourced under the Apache-2.0 license. See the [LICENSE](LICENSE) file for details.
+```bash
+ros2 run micro_ros_agent micro_ros_agent udp4 -p 8888
+```
 
-For a list of other open-source components included in this repository,
-see the file [3rd-party-licenses.txt](3rd-party-licenses.txt).
-
-## Known Issues/Limitations
-
-There are no known limitations.
+> Note: This repository uses a UDP connection on port 8888 by default.
