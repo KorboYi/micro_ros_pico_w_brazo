@@ -31,6 +31,10 @@ public:
 	// Get all angles of the servos
 	void getAngles(float* angles);
 
+	void setSpeed(uint8_t index, float speed);
+
+	void getSpeeds(float* speeds);
+
 private:
 	// The four servos
 	Servo s1;

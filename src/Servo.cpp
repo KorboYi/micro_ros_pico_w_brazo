@@ -75,3 +75,11 @@ void Servo::goDegree(float degree) {
 float Servo::getAngle() {
 	return angle;
 }
+
+void Servo::setSpeed(float speed) {
+	this->speed = speed;
+}
+
+float Servo::getSpeed() {
+	return speed;
+}

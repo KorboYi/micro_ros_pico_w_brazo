@@ -39,11 +39,13 @@ rcl_publisher_t distance_publisher; // Distance sensor readings
 // Subscriptions for controlling LED and servo angles
 rcl_subscription_t led_subscription;    // LED control
 rcl_subscription_t angles_subscription; // 4-servo array command
+rcl_subscription_t speeds_subscription; // 4-servo speed command
 
 // Message buffers used by the executor callbacks
 std_msgs__msg__Bool led_msg;
 sensor_msgs__msg__JointState angles_pub_msg;        // published message
 std_msgs__msg__Float32MultiArray angles_sub_msg;    // multi-angle subscriber buffer
+std_msgs__msg__Float32MultiArray speeds_sub_msg;    // multi-speed subscriber buffer
 sensor_msgs__msg__Range distance_pub_msg;           // distance message
 
 // Hardware/control objects
@@ -61,7 +63,7 @@ const uint32_t WIFI_TIMEOUT_MS = 10000; // per-attempt timeout (ms)
 
 // IP address and port of the micro-ROS agent
 // Change this to the agent IP and port on your network.
-const char* ROS_AGENT_IP_ADDR = "10.101.13.109";
+const char *ROS_AGENT_IP_ADDR = "10.101.41.119";
 const int ROS_AGENT_UDP_PORT = 8888;
 
 // Node and namespace identifiers
@@ -70,6 +72,7 @@ const uint8_t BRAZO_ID = 1;
 const std::string NODE_NAME = "pico_w_brazo_" + std::to_string(BRAZO_ID);
 const std::string NAMESPACE = "brazo_" + std::to_string(BRAZO_ID);
 
+volatile bool speed_control_enabled = false;
 
 // timer_callback: runs periodically and publishes current servo angles.
 // - reads the angles from the Brazo object
@@ -137,6 +140,7 @@ void led_subscription_callback(const void* msgin)
 // The four positions are applied to the four servos in order.
 void angles_subscription_callback(const void* msgin)
 {
+    printf("Received new joint angles command\n");
     auto jmsg = (const std_msgs__msg__Float32MultiArray*)msgin;
 
     if (jmsg->data.size != 4) {
@@ -144,9 +148,55 @@ void angles_subscription_callback(const void* msgin)
         return;
     }
 
+    speed_control_enabled = false;
     for (size_t i = 0; i < 4; i++) {
-        g_brazo.goDegree(i+1, jmsg->data.data[i]);
-        printf("Set joint %zu to %f degrees\n", i+1, jmsg->data.data[i]);   
+        g_brazo.goDegree(i + 1, jmsg->data.data[i]);
+        printf("Set joint %zu to %f degrees\n", i + 1, jmsg->data.data[i]);
+    }
+}
+
+void speeds_subscription_callback(const void *msgin)
+{
+    auto smsg = (const std_msgs__msg__Float32MultiArray *)msgin;
+
+    if (smsg->data.size != 4)
+    {
+        printf("Invalid speed data size: %zu\n", smsg->data.size);
+        return;
+    }
+
+    speed_control_enabled = true;
+    for (size_t i = 0; i < 4; i++)
+    {
+        g_brazo.setSpeed(i + 1, smsg->data.data[i]);
+        printf("Set joint %zu speed to %f\n", i + 1, smsg->data.data[i]);
+    }
+}
+
+void move_arm_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
+{
+    float angles[4];
+    float speeds[4];
+
+    if (!speed_control_enabled)
+    {
+        return;
+    }
+    g_brazo.getAngles(angles);
+    g_brazo.getSpeeds(speeds);
+
+    for (size_t i = 0; i < 4; i++)
+    {
+        float new_angle = angles[i] + speeds[i] * float(last_call_time) / 1e9f;
+        if (new_angle > 180.0f)
+        {
+            new_angle = 180.0f;
+        }
+        if (new_angle < 0.0f)
+        {
+            new_angle = 0.0f;
+        }
+        g_brazo.goDegree(i + 1, new_angle);
     }
 }
 
@@ -238,6 +288,7 @@ int main()
     // rcl/rclc objects needed for node, timers, and executor
     rcl_timer_t angles_pub_timer;
     rcl_timer_t distance_pub_timer;
+    rcl_timer_t move_arm_timer;
     rcl_node_t node;
     rcl_allocator_t allocator;
     rclc_support_t support;
@@ -262,7 +313,8 @@ int main()
     rclc_support_init(&support, 0, NULL, &allocator);
 
     // Create node and a publisher that will announce joint states
-    rclc_node_init_default(&node, NODE_NAME.c_str(), NAMESPACE.c_str(), &support);
+    // rclc_node_init_default(&node, NODE_NAME.c_str(), NAMESPACE.c_str(), &support);
+    rclc_node_init_default(&node, NODE_NAME.c_str(), "", &support);
     rclc_publisher_init_default(
         &angles_publisher,
         &node,
@@ -286,7 +338,7 @@ int main()
         &distance_pub_timer,
         &support,
         RCL_MS_TO_NS(500),
-        NULL); // TODO: add distance timer callback
+        distance_pub_timer_callback);
 
     // Initialize subscriptions for LED control and angle commands
     rclc_subscription_init_default(
@@ -301,8 +353,20 @@ int main()
         ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32MultiArray),
         "arm_controller/joint_commands");
 
-    // Executor with capacity for 5 handles (3 subs + timer + spare)
-    rclc_executor_init(&executor, &support.context, 5, &allocator);
+    rclc_subscription_init_default(
+        &speeds_subscription,
+        &node,
+        ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32MultiArray),
+        "arm_controller/joint_speeds");
+
+    rclc_timer_init_default(
+        &move_arm_timer,
+        &support,
+        RCL_MS_TO_NS(20),
+        move_arm_timer_callback);
+
+    // Executor with capacity for 7 handles (6 + 1 overhead)
+    rclc_executor_init(&executor, &support.context, 7, &allocator);
 
     // Register subscriptions with the executor and provide the message buffers
     rclc_executor_add_subscription(
@@ -319,7 +383,16 @@ int main()
         angles_subscription_callback,
         ON_NEW_DATA);
 
+    rclc_executor_add_subscription(
+        &executor,
+        &speeds_subscription,
+        &speeds_sub_msg,
+        speeds_subscription_callback,
+        ON_NEW_DATA);
+
     rclc_executor_add_timer(&executor, &angles_pub_timer);
+    rclc_executor_add_timer(&executor, &distance_pub_timer);
+    rclc_executor_add_timer(&executor, &move_arm_timer);
 
     // Turn status LED on to indicate WiFi/NTP and micro-ROS initialization
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
@@ -335,10 +408,22 @@ int main()
     angles_pub_msg.position.capacity = 4;
     angles_pub_msg.position.data = (double*)malloc(4 * sizeof(double));
     for (size_t i = 0; i < 4; i++) {
-        angles_pub_msg.name.data[i].data = ("joint" + std::to_string(i + 1)).data();
-        angles_pub_msg.name.data[i].size = strlen(angles_pub_msg.name.data[i].data);
-        angles_pub_msg.name.data[i].capacity = angles_pub_msg.name.data[i].size + 1;
+        // Build the name in a std::string then allocate persistent storage
+        // for the C string so it doesn't point into a temporary.
+        std::string s = "joint_" + std::to_string(i + 1);
+        angles_pub_msg.name.data[i].data = (char *)malloc(s.size() + 1);
+        memcpy(angles_pub_msg.name.data[i].data, s.c_str(), s.size() + 1);
+        angles_pub_msg.name.data[i].size = s.size();
+        angles_pub_msg.name.data[i].capacity = s.size() + 1;
     }
+
+    angles_sub_msg.data.data = (float *)malloc(4 * sizeof(float));
+    angles_sub_msg.data.size = 0;
+    angles_sub_msg.data.capacity = 4;
+
+    speeds_sub_msg.data.data = (float *)malloc(4 * sizeof(float));
+    speeds_sub_msg.data.size = 0;
+    speeds_sub_msg.data.capacity = 4;
 
     // Main loop: let the executor service callbacks and timers.
     while (true)

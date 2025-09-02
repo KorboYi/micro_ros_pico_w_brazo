@@ -25,9 +25,14 @@ public:
 
 	float getAngle();
 
+	void setSpeed(float speed);
+
+	float getSpeed();
+
 private:
 	uint8_t xGP = 0;
 	float angle = 0.0f;
+	float speed = 0.0f;
 };
 
 #endif /* SERVO_SRC_SERVO_H_ */

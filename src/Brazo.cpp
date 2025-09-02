@@ -10,7 +10,7 @@ void Brazo::init() {
 	s3.init();
 	s4.init();
 
-	goDegrees(90, 0, 0, 0);
+	goDegrees(90, 90, 90, 90);
 }
 
 void Brazo::goDegree(uint8_t index, float degree) {
@@ -42,4 +42,37 @@ void Brazo::getAngles(float* angles) {
 	angles[1] = s2.getAngle();
 	angles[2] = s3.getAngle();
 	angles[3] = s4.getAngle();
+}
+
+void Brazo::setSpeed(uint8_t index, float speed)
+{
+	switch (index)
+	{
+	case 1:
+		s1.setSpeed(speed);
+		break;
+	case 2:
+		s2.setSpeed(speed);
+		break;
+	case 3:
+		s3.setSpeed(speed);
+		break;
+	case 4:
+		s4.setSpeed(speed);
+		break;
+	default: /* ignore invalid index */
+		break;
+	}
+}
+
+void Brazo::getSpeeds(float *speeds)
+{
+	if (speeds == nullptr)
+	{
+		return;
+	}
+	speeds[0] = s1.getSpeed();
+	speeds[1] = s2.getSpeed();
+	speeds[2] = s3.getSpeed();
+	speeds[3] = s4.getSpeed();
 }
