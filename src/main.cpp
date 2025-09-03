@@ -273,7 +273,7 @@ int main()
 
     // Initialize servo controller (calibration, pin setup inside Brazo)
     g_brazo.init();
-    g_ultrasonido.init();
+    // g_ultrasonido.init();
 
     // Configure micro-ROS to use a custom UDP transport tailored for Pico W
     rmw_uros_set_custom_transport(
@@ -315,11 +315,14 @@ int main()
     // Create node and a publisher that will announce joint states
     // rclc_node_init_default(&node, NODE_NAME.c_str(), NAMESPACE.c_str(), &support);
     rclc_node_init_default(&node, NODE_NAME.c_str(), "", &support);
-    rclc_publisher_init_default(
+    rcl_publisher_options_t angle_pub_ops = rcl_publisher_get_default_options();
+    angle_pub_ops.qos.reliability = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+    rclc_publisher_init(
         &angles_publisher,
         &node,
         ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState),
-        "joint_states");
+        "joint_states",
+        &angle_pub_ops.qos);
 
     // Create a periodic timer that calls timer_callback every 100 ms
     rclc_timer_init_default(
@@ -328,17 +331,17 @@ int main()
         RCL_MS_TO_NS(100),
         angles_pub_timer_callback);
 
-    rclc_publisher_init_default(
-        &distance_publisher,
-        &node,
-        ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Range),
-        "distance");
+    // rclc_publisher_init_default(
+    //     &distance_publisher,
+    //     &node,
+    //     ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, Range),
+    //     "distance");
 
-    rclc_timer_init_default(
-        &distance_pub_timer,
-        &support,
-        RCL_MS_TO_NS(500),
-        distance_pub_timer_callback);
+    // rclc_timer_init_default(
+    //     &distance_pub_timer,
+    //     &support,
+    //     RCL_MS_TO_NS(500),
+    //     distance_pub_timer_callback);
 
     // Initialize subscriptions for LED control and angle commands
     rclc_subscription_init_default(
@@ -362,7 +365,7 @@ int main()
     rclc_timer_init_default(
         &move_arm_timer,
         &support,
-        RCL_MS_TO_NS(20),
+        RCL_MS_TO_NS(100),
         move_arm_timer_callback);
 
     // Executor with capacity for 7 handles (6 + 1 overhead)
@@ -391,7 +394,7 @@ int main()
         ON_NEW_DATA);
 
     rclc_executor_add_timer(&executor, &angles_pub_timer);
-    rclc_executor_add_timer(&executor, &distance_pub_timer);
+    // rclc_executor_add_timer(&executor, &distance_pub_timer);
     rclc_executor_add_timer(&executor, &move_arm_timer);
 
     // Turn status LED on to indicate WiFi/NTP and micro-ROS initialization
@@ -428,7 +431,7 @@ int main()
     // Main loop: let the executor service callbacks and timers.
     while (true)
     {
-        rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100));
+        rclc_executor_spin_some(&executor, RCL_MS_TO_NS(10));
     }
     return 0;
 }
