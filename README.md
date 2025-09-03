@@ -101,6 +101,11 @@ rosdep install --from-paths src --ignore-src -y
 # Compile and source the enviroment
 colcon build
 source install/local_setup.bash
+
+# Create and build the agent
+ros2 run micro_ros_setup create_agent_ws.sh
+ros2 run micro_ros_setup build_agent.sh
+source install/local_setup.bash
 ```
 
 ### 2. Usage
