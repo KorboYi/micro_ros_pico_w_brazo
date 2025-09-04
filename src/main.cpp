@@ -87,7 +87,7 @@ void angles_pub_timer_callback(rcl_timer_t* timer, int64_t last_call_time)
     g_brazo.getAngles(brazo_angles);
     for (size_t i = 0; i < 4; i++) {
         // JointState::position uses double values; assignment will convert
-        angles_pub_msg.position.data[i] = brazo_angles[i];
+        angles_pub_msg.position.data[i] = brazo_angles[i] + (((float)rand() / (float)RAND_MAX) * 2.0f - 1.0f); // add +/-1.0 degree float noise
     }
 
     // Compute current wall-clock time based on ntp_time and uptime.
