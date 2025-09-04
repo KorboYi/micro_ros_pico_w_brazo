@@ -15,7 +15,7 @@ There are two parts of the enviroment in order for us to use micro-ROS in the Ra
 
 - Agent: The communication channel for the micro-controller to interact with a ROS enviroment. Usually, it runs on the host computer, giving access and exposing the nodes and topics from defined in the frimware.
 
-> Note: The ```ROS_DOMAIN_ID``` would be the one that is defined by the agent.
+> Note: The ```ROS_DOMAIN_ID``` is also defined by the Raspberry Pi Pico W.
 
 ## Frimware Installation
 
@@ -46,7 +46,7 @@ source ~/.bashrc
 
 ### 3. Compile the Firmware
 
-To indicate which host the agent is running on, modify the `ROS_AGENT_IP_ADDR` constant in [`src/main.cpp`](src/main.cpp). You can also change the Wi‑Fi settings via the `SSID` and `PSWD` constants. These are the only values you typically need to modify in the codebase.
+Before building, set the network and agent parameters in `src/main.cpp`: update `ROS_AGENT_IP_ADDR` to the host IP where the micro-ROS agent runs, change `ROS_DOMAIN_ID` to your ROS domain ID, and replace `SSID` and `PSWD` with your Wi‑Fi credentials. In most cases these are the only values you need to change.
 
 Once the Pico SDK is ready, compile the repository:
 
