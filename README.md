@@ -46,7 +46,7 @@ source ~/.bashrc
 
 ### 3. Compile the Firmware
 
-Before building, set the network and agent parameters in `src/main.cpp`: update `ROS_AGENT_IP_ADDR` to the host IP where the micro-ROS agent runs, change `ROS_DOMAIN_ID` to your ROS domain ID, and replace `SSID` and `PSWD` with your Wi‑Fi credentials. In most cases these are the only values you need to change.
+Before building, set the network and agent parameters in [`src/main.cpp`](src/main.cpp): update `ROS_AGENT_IP_ADDR` to the host IP where the micro-ROS agent runs, change `ROS_DOMAIN_ID` to your ROS domain ID, and replace `SSID` and `PSWD` with your Wi‑Fi credentials. In most cases these are the only values you need to change.
 
 Once the Pico SDK is ready, compile the repository:
 
