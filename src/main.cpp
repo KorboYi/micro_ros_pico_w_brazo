@@ -187,6 +187,10 @@ void move_arm_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
 
     for (size_t i = 0; i < 4; i++)
     {
+        if (speeds[i] == 0.0f)
+        {
+            continue;
+        }
         float new_angle = angles[i] + speeds[i] * float(last_call_time) / 1e9f;
         if (new_angle > 180.0f)
         {
