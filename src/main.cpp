@@ -65,6 +65,7 @@ const uint32_t WIFI_TIMEOUT_MS = 10000; // per-attempt timeout (ms)
 // Change this to the agent IP and port on your network.
 const char *ROS_AGENT_IP_ADDR = "10.101.41.119";
 const int ROS_AGENT_UDP_PORT = 8888;
+const size_t ROS_DOMAIN_ID = 69;
 
 // Node and namespace identifiers
 // Change this to match your robot's ID
@@ -313,8 +314,12 @@ int main()
         return ret;
     }
 
+    rcl_init_options_t init_options = rcl_get_zero_initialized_init_options();
+    ret = rcl_init_options_init(&init_options, allocator);
+    ret = rcl_init_options_set_domain_id(&init_options, ROS_DOMAIN_ID);
+
     // Initialize rclc support/context
-    rclc_support_init(&support, 0, NULL, &allocator);
+    rclc_support_init_with_options(&support, 0, NULL, &init_options, &allocator);
 
     // Create node and a publisher that will announce joint states
     // rclc_node_init_default(&node, NODE_NAME.c_str(), NAMESPACE.c_str(), &support);
