@@ -27,7 +27,11 @@
 
 // Custom transport and project headers
 #include "config.h"                 // Project-specific configuration (WiFi, ROS_DOMAIN_ID, etc)
+#if USE_UART_TRANSPORT
+#include "pico_uart_transports.h" // UART transport for micro-ROS agent communication
+#else
 #include "picow_udp_transports.h"   // UDP transport for micro-ROS agent communication
+#endif
 #include "Brazo.h"                  // Servo/arm control abstraction
 #include "ntp_client.h"             // Simple NTP client helper
 
@@ -249,8 +253,17 @@ int main()
 
     // Initialize servo controller (calibration, pin setup inside Brazo)
     g_brazo.init();
-    // g_ultrasonido.init();
 
+#if USE_UART_TRANSPORT
+    // Configure micro-ROS to use a custom UART transport
+    rmw_uros_set_custom_transport(
+        true,
+        NULL,
+        pico_serial_transport_open,
+        pico_serial_transport_close,
+        pico_serial_transport_write,
+        pico_serial_transport_read);
+#else
     // Configure micro-ROS to use a custom UDP transport tailored for Pico W
     rmw_uros_set_custom_transport(
         false,
@@ -258,8 +271,8 @@ int main()
         picow_udp_transport_open,
         picow_udp_transport_close,
         picow_udp_transport_write,
-        picow_udp_transport_read
-    );
+        picow_udp_transport_read);
+#endif
 
     // rcl/rclc objects needed for node, timers, and executor
     rcl_timer_t angles_pub_timer;

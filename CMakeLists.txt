@@ -13,13 +13,21 @@ set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
 
 link_directories(libmicroros)
+
+option(USE_UART_TRANSPORT "Use UART transport" OFF)
 add_executable(${PROJECT_NAME}
     src/main.cpp
-    src/picow_udp_transports.c
     src/Servo.cpp
     src/Brazo.cpp
     src/ntp_client.c
 )
+if(USE_UART_TRANSPORT)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE USE_UART_TRANSPORT=1)
+    target_sources(${PROJECT_NAME} PRIVATE src/pico_uart_transport.c)
+else()
+target_compile_definitions(${PROJECT_NAME} PRIVATE USE_UART_TRANSPORT=0)
+    target_sources(${PROJECT_NAME} PRIVATE src/picow_udp_transports.c)
+endif()
 
 target_link_libraries(${PROJECT_NAME}
     pico_stdlib
@@ -51,15 +59,15 @@ pico_add_extra_outputs(${PROJECT_NAME})
 
 option(COPY_UF2 "Copy UF2 to Pico automatically" OFF)
 if(COPY_UF2)
-# === Copy UF2 to Pico automatically ===
-set(PICO_MOUNT /media/$ENV{USER}/RPI-RP2)
-set(UF2_FILE ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.uf2)
+    # === Copy UF2 to Pico automatically ===
+    set(PICO_MOUNT /media/$ENV{USER}/RPI-RP2)
+    set(UF2_FILE ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.uf2)
 
-add_custom_target(copy_uf2 ALL
-    COMMAND ${CMAKE_COMMAND} -E echo "Checking for Pico at ${PICO_MOUNT}..."
-    COMMAND ${CMAKE_COMMAND} -E copy "${UF2_FILE}" "${PICO_MOUNT}/${PROJECT_NAME}.uf2"
-    DEPENDS ${PROJECT_NAME}
-    COMMENT "Flashing ${PROJECT_NAME}.uf2 to Pico"
-)
+    add_custom_target(copy_uf2 ALL
+        COMMAND ${CMAKE_COMMAND} -E echo "Checking for Pico at ${PICO_MOUNT}..."
+        COMMAND ${CMAKE_COMMAND} -E copy "${UF2_FILE}" "${PICO_MOUNT}/${PROJECT_NAME}.uf2"
+        DEPENDS ${PROJECT_NAME}
+        COMMENT "Flashing ${PROJECT_NAME}.uf2 to Pico"
+    )
 endif()
 
