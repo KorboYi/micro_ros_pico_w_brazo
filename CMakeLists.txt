@@ -4,9 +4,7 @@ set(PICO_BOARD "pico_w")
 include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 include_directories(
     ${PICO_SDK_PATH}/src/common/pico_base/include}
-    lib/pico-distance-sensor/include
 )
-add_subdirectory(lib/pico-distance-sensor)
 
 project(micro_ros_pico_w_brazo C CXX ASM)
 set(CMAKE_C_STANDARD 11)
@@ -21,7 +19,6 @@ add_executable(${PROJECT_NAME}
     src/Servo.cpp
     src/Brazo.cpp
     src/ntp_client.c
-    src/Ultrasonido.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -29,7 +26,6 @@ target_link_libraries(${PROJECT_NAME}
     microros
     pico_cyw43_arch_lwip_threadsafe_background
     hardware_pwm
-    distance-sensor
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
