@@ -49,6 +49,8 @@ add_compile_definitions(PICO_STDIO_DEFAULT_CRLF=0)
 # Generate UF2
 pico_add_extra_outputs(${PROJECT_NAME})
 
+option(COPY_UF2 "Copy UF2 to Pico automatically" OFF)
+if(COPY_UF2)
 # === Copy UF2 to Pico automatically ===
 set(PICO_MOUNT /media/$ENV{USER}/RPI-RP2)
 set(UF2_FILE ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.uf2)
@@ -59,4 +61,5 @@ add_custom_target(copy_uf2 ALL
     DEPENDS ${PROJECT_NAME}
     COMMENT "Flashing ${PROJECT_NAME}.uf2 to Pico"
 )
+endif()
 
