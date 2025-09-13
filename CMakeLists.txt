@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.12)
 set(PICO_BOARD "pico_w")
 include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 include_directories(
-    ${PICO_SDK_PATH}/src/common/pico_base/include}
+    ${PICO_SDK_PATH}/src/common/pico_base/include
 )
 
 project(micro_ros_pico_w_brazo C CXX ASM)
