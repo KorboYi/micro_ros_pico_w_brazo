@@ -123,6 +123,8 @@ void angles_subscription_callback(const void* msgin)
     }
 }
 
+// speeds_subscription_callback: expects a Float32MultiArray where data.size == 4
+// The four speeds (degrees per second) are applied to the four servos in order.
 void speeds_subscription_callback(const void *msgin)
 {
     auto smsg = (const std_msgs__msg__Float32MultiArray *)msgin;
@@ -141,6 +143,8 @@ void speeds_subscription_callback(const void *msgin)
     }
 }
 
+// move_arm_timer_callback: if speed control is enabled, this timer callback
+// runs periodically and updates the servo angles based on their speeds.
 void move_arm_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
 {
     float angles[4];
@@ -290,7 +294,7 @@ int main()
 
     // Create node and a publisher that will announce joint states
     // rclc_node_init_default(&node, NODE_NAME.c_str(), NAMESPACE.c_str(), &support);
-    rclc_node_init_default(&node, NODE_NAME.c_str(), "", &support);
+    rclc_node_init_default(&node, "pico_w_arm", "", &support);
     rcl_publisher_options_t angle_pub_ops = rcl_publisher_get_default_options();
     angle_pub_ops.qos.reliability = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
     rclc_publisher_init(
