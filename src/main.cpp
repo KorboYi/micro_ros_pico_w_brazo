@@ -330,7 +330,7 @@ int main()
         &angles_publisher,
         &node,
         ROSIDL_GET_MSG_TYPE_SUPPORT(sensor_msgs, msg, JointState),
-        "joint_states",
+        "joint_states_arm",
         &angle_pub_ops.qos);
 
     // Create a periodic timer that calls timer_callback every 100 ms
