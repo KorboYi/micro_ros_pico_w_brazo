@@ -26,6 +26,7 @@
 #include "pico/cyw43_arch.h"
 
 // Custom transport and project headers
+#include "config.h"                 // Project-specific configuration (WiFi, ROS_DOMAIN_ID, etc)
 #include "picow_udp_transports.h"   // UDP transport for micro-ROS agent communication
 #include "Brazo.h"                  // Servo/arm control abstraction
 #include "ntp_client.h"             // Simple NTP client helper
@@ -51,23 +52,9 @@ absolute_time_t BOOT_TIME;                      // pico absolute boot time (micr
 absolute_time_t NTP_TIME;                       // last NTP-synchronized time (microseconds)
 const int OFFSET_SECONDS = 5 * 3600;            // UTC-5
 
-// WiFi credentials and retry configuration
-const char* SSID = "redpucp";
-const char* PSWD = "C9AA28BA93";
+// WiFi retry configuration
 const uint8_t WIFI_RETRIES = 5;
 const uint32_t WIFI_TIMEOUT_MS = 10000; // per-attempt timeout (ms)
-
-// IP address and port of the micro-ROS agent
-// Change this to the agent IP and port on your network.
-const char *ROS_AGENT_IP_ADDR = "10.101.41.119";
-const int ROS_AGENT_UDP_PORT = 8888;
-const size_t ROS_DOMAIN_ID = 69;
-
-// Node and namespace identifiers
-// Change this to match your robot's ID
-const uint8_t BRAZO_ID = 1;
-const std::string NODE_NAME = "pico_w_brazo_" + std::to_string(BRAZO_ID);
-const std::string NAMESPACE = "brazo_" + std::to_string(BRAZO_ID);
 
 volatile bool speed_control_enabled = false;
 

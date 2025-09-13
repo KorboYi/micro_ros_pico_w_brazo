@@ -8,13 +8,12 @@
 #include "pico/cyw43_arch.h"
 #include "lwip/pbuf.h"
 #include "lwip/udp.h"
+#include "config.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-    extern const char* ROS_AGENT_IP_ADDR;
-    extern const int ROS_AGENT_UDP_PORT;
 
     typedef struct {
         struct udp_pcb* pcb;
