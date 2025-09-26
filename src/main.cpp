@@ -15,7 +15,9 @@
 #include <rclc/rclc.h>
 #include <rclc/executor.h>
 #include <std_msgs/msg/bool.h>
+#include <std_msgs/msg/int16.h>
 #include <std_msgs/msg/float32_multi_array.h>
+#include <std_msgs/msg/header.h>
 #include <sensor_msgs/msg/joint_state.h>
 #include <sensor_msgs/msg/range.h>
 #include <rmw_microros/rmw_microros.h>
@@ -38,14 +40,18 @@
 // -- ROS objects (global for simplicity in this small example) --
 // Publisher that periodically publishes the 4 servo angles
 rcl_publisher_t angles_publisher; // 4-servo angles
+rcl_publisher_t ping_publisher;
 
 // Subscriptions for controlling LED and servo angles
 rcl_subscription_t led_subscription;    // LED control
 rcl_subscription_t angles_subscription; // 4-servo array command
 rcl_subscription_t speeds_subscription; // 4-servo speed command
+rcl_subscription_t ping_subscriber;
 
 // Message buffers used by the executor callbacks
 std_msgs__msg__Bool led_msg;
+std_msgs__msg__Header ping_pub_msg;
+std_msgs__msg__Int16 ping_sub_msg;
 sensor_msgs__msg__JointState angles_pub_msg;        // published message
 std_msgs__msg__Float32MultiArray angles_sub_msg;    // multi-angle subscriber buffer
 std_msgs__msg__Float32MultiArray speeds_sub_msg;    // multi-speed subscriber buffer
@@ -178,6 +184,20 @@ void move_arm_timer_callback(rcl_timer_t *timer, int64_t last_call_time)
         }
         g_brazo.goDegree(i + 1, new_angle);
     }
+}
+
+void ping_subscription_callback(const void* msgin){
+    auto jmsg = (const std_msgs__msg__Int16*)msgin;
+    int16_t ping_recivied;
+    ping_recivied = jmsg->data;
+    if (ping_recivied==1){
+        absolute_time_t current_time = NTP_TIME + (get_absolute_time() - BOOT_TIME);
+        // Convert microseconds (absolute_time_t) to sec/nsec
+        ping_pub_msg.stamp.sec = current_time / 1000000;
+        ping_pub_msg.stamp.nanosec = (current_time % 1000000) * 1000;
+    }
+    // Publish
+    auto ret = rcl_publish(&ping_publisher, &ping_pub_msg, NULL);
 }
 
 int main()
@@ -348,7 +368,18 @@ int main()
         &support,
         RCL_MS_TO_NS(100),
         move_arm_timer_callback);
-
+    
+    rclc_subscription_init_default(
+        &ping_subscriber,
+        &node,
+        ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int16),
+        "ping_subscriber");
+    
+    rclc_publisher_init_default(
+        &ping_publisher,
+        &node,
+        ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Header),
+        "ping_publisher");
     // Executor with capacity for 7 handles (6 + 1 overhead)
     rclc_executor_init(&executor, &support.context, 7, &allocator);
 
@@ -372,6 +403,13 @@ int main()
         &speeds_subscription,
         &speeds_sub_msg,
         speeds_subscription_callback,
+        ON_NEW_DATA);
+    
+    rclc_executor_add_subscription(
+        &executor,
+        &ping_subscriber,
+        &ping_sub_msg,
+        ping_subscription_callback,
         ON_NEW_DATA);
 
     rclc_executor_add_timer(&executor, &angles_pub_timer);
@@ -408,6 +446,7 @@ int main()
     speeds_sub_msg.data.size = 0;
     speeds_sub_msg.data.capacity = 4;
 
+    ping_pub_msg = std_msgs__msg__Header();
     // Main loop: let the executor service callbacks and timers.
     while (true)
     {
